@@ -1997,21 +1997,14 @@ def sequential_calibrate(
                 for args, kwargs_input in _inputs:
                     m(*args, **kwargs_input)
 
-<<<<<<< HEAD
             calib_func(layer, _layer_forward_loop, **calib_kwargs)
 
             del layer_inputs
             torch.cuda.empty_cache()
     finally:
         input_getter._unpatch_all_layers()
-=======
-        # Call calibration function
-        calib_func(layer, _layer_forward_loop, **calib_kwargs)
-        del layer_inputs
-        torch.cuda.empty_cache()
     
     print_rank_0("Sequential calibration completed")
->>>>>>> 086c1d21 (super v3 run)
 
 
 @torch.no_grad()
