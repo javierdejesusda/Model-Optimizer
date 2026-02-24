@@ -424,8 +424,6 @@ NVFP4_DEFAULT_CFG = {
         "*weight_quantizer": _nvfp4_quantizer,
         "*input_quantizer": _nvfp4_quantizer,
         **_default_disabled_quantizer_cfg,
-        "*mixer.in_proj*": {"enable": False},  # Skip mamba linear
-        "*mixer.out_proj*": {"enable": False},  # Skip mamba linear
     },
     "algorithm": "max",
 }
