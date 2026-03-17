@@ -114,14 +114,12 @@ class FakeBaseModel(PreTrainedModel):
         self.embed_tokens = nn.Embedding(config.vocab_size, config.hidden_size)
         self.lm_head = nn.Linear(config.hidden_size, config.vocab_size, bias=False)
 
-        try:
-            lm_head_w, embed_tokens_w = self._load_weights(source)
-            assert lm_head_w.shape == (config.vocab_size, config.hidden_size)
-            assert embed_tokens_w.shape == (config.vocab_size, config.hidden_size)
-            self.lm_head.weight.data.copy_(lm_head_w)
-            self.embed_tokens.weight.data.copy_(embed_tokens_w)
-        except Exception as e:
-            raise ValueError(f"Failed to initialize lm_head and embed_tokens: {e}")
+        # Load lm_head and embed_tokens only from checkpoint
+        lm_head_w, embed_tokens_w = self._load_weights(source)
+        assert lm_head_w.shape == (config.vocab_size, config.hidden_size)
+        assert embed_tokens_w.shape == (config.vocab_size, config.hidden_size)
+        self.lm_head.weight.data.copy_(lm_head_w)
+        self.embed_tokens.weight.data.copy_(embed_tokens_w)
 
     @staticmethod
     def _find_weight_key(weight_map: dict, paths: list[str], label: str) -> str:
