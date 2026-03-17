@@ -486,35 +486,30 @@ def enable_cp_ttt_patch():
 
 def load_vlm_or_llm(
     model_name_or_path: str,
+    use_fake_base: bool = True,
     use_offline_training: bool = False,
-    fake_base_args=None,
     torch_dtype: str | torch.dtype | None = None,
     device_map: str | None = None,
     trust_remote_code: bool = False,
 ):
     """Load a VLM or LLM. Returns the model.
 
-    When ``use_offline_training=True`` and ``fake_base_args.use_fake_base_model=True``, returns a
+    When ``use_offline_training=True``, returns a
     :class:`~modelopt.torch.speculative.plugins.modeling_fakebase.FakeBaseModel` containing only
-    ``lm_head`` and ``embed_tokens``. Otherwise, falls back to loading with
-    ``num_hidden_layers=0`` for memory efficiency.
+    ``lm_head`` and ``embed_tokens``, auto-detecting weight paths from the checkpoint.
+    Otherwise, falls back to loading with ``num_hidden_layers=0`` for memory efficiency.
 
     Args:
         model_name_or_path: Local path or HuggingFace repo ID of the model.
         use_offline_training: Whether to load a memory-efficient model for offline training.
-        fake_base_args: Optional
-            :class:`~modelopt.torch.speculative.plugins.modeling_fakebase.FakeBaseArguments`.
-            If provided and ``use_offline_training=True``, a
-            :class:`~modelopt.torch.speculative.plugins.modeling_fakebase.FakeBaseModel` is
-            returned instead of the full model.
         torch_dtype: dtype to use when loading the model.
         device_map: Device map passed to ``from_pretrained``.
         trust_remote_code: Whether to trust remote code.
     """
-    if use_offline_training and fake_base_args is not None and fake_base_args.use_fake_base_model:
+    if use_offline_training and use_fake_base:
         from modelopt.torch.speculative.plugins.modeling_fakebase import FakeBaseModel
 
-        return FakeBaseModel(model_name_or_path, fake_base_args)
+        return FakeBaseModel(model_name_or_path)
 
     model_config = transformers.AutoConfig.from_pretrained(
         model_name_or_path, trust_remote_code=trust_remote_code

@@ -47,7 +47,6 @@ from transformers.trainer_utils import get_last_checkpoint
 
 import modelopt.torch.opt as mto
 import modelopt.torch.speculative as mtsp
-from modelopt.torch.speculative.plugins.modeling_fakebase import FakeBaseArguments
 from modelopt.torch.speculative.utils import load_vlm_or_llm, patch_transformers5_params_loading
 from modelopt.torch.utils import print_rank_0
 
@@ -58,6 +57,9 @@ mto.enable_huggingface_checkpointing()
 @dataclass
 class ModelArguments:
     model_name_or_path: str | None = field(default="TinyLlama/TinyLlama-1.1B-Chat-v1.0")
+    use_fake_base_for_offline: bool = field(
+        default=True, metadata={"help": "Whether to use fake base for offline training."}
+    )
 
 
 @dataclass
@@ -138,10 +140,9 @@ def train():
             TrainingArguments,
             MedusaArguments,
             EagleArguments,
-            FakeBaseArguments,
         )
     )
-    model_args, data_args, training_args, medusa_args, eagle_args, fake_base_args = (
+    model_args, data_args, training_args, medusa_args, eagle_args = (
         parser.parse_args_into_dataclasses()
     )
     training_args.parallelism_config = ParallelismConfig(
@@ -175,8 +176,8 @@ def train():
         # Model will be moved to GPU during HF trainer.init().
         model = load_vlm_or_llm(
             model_args.model_name_or_path,
+            use_fake_base=model_args.use_fake_base_for_offline,
             use_offline_training=use_offline_training,
-            fake_base_args=fake_base_args,
             torch_dtype="auto",
             device_map="cpu",
             trust_remote_code=True,

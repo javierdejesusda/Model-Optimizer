@@ -68,6 +68,7 @@ from ..utils import (
     get_ttt_msk_func,
     temporary_set_config_value,
 )
+from .modeling_fakebase import _BASE_MODEL_PATHS, _EMBED_TOKENS_PATHS, _LM_HEAD_PATHS
 
 __all__ = ["HFARValidation", "HFEagleModel", "HFMedusaModel"]
 
@@ -464,22 +465,9 @@ class HFEagleModel(EagleModel):
     def _find_base_model_parts(self):
         """Find model parts from different models and set base_{part}_path attributes."""
         base_model_parts_mapping = {
-            "base_model_path": [
-                "language_model.model",
-                "model.language_model",
-                "model",
-                "backbone",
-                "language_model.backbone",
-            ],
-            "base_model_embeddings_path": [
-                "embed_tokens",
-                "language_model.model.embed_tokens",
-                "model.embed_tokens",
-                "backbone.embeddings",
-                "language_model.backbone.embeddings",
-                "model.language_model.embed_tokens",
-            ],
-            "base_model_lm_head_path": ["lm_head", "language_model.lm_head"],
+            "base_model_path": _BASE_MODEL_PATHS,
+            "base_model_embeddings_path": _EMBED_TOKENS_PATHS,
+            "base_model_lm_head_path": _LM_HEAD_PATHS,
         }
 
         for name, paths in base_model_parts_mapping.items():
