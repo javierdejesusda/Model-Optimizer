@@ -48,7 +48,6 @@ from transformers.models.llama.modeling_llama import (
 )
 from transformers.trainer_pt_utils import LabelSmoother
 from transformers.utils import ModelOutput
-from transformers.utils.quantization_config import CompressedTensorsConfig
 
 from ...export.plugins.hf_spec_export import (
     EagleExporter,
@@ -568,11 +567,6 @@ class HFEagleModel(EagleModel):
         if self.eagle_config._attn_implementation is None:
             self.eagle_config._attn_implementation = "sdpa"
 
-        # Patch for Kimi-K2-Thinking, avoid quantizing drafter
-        quant_config = getattr(self.config, "quantization_config", None)
-        if isinstance(quant_config, CompressedTensorsConfig):
-            quant_config.quantization_config.ignore.append("re:.*eagle_module.*")
-
         # Set default aux_hidden_state layers
         if (
             self.eagle_config.use_aux_hidden_state
@@ -582,7 +576,7 @@ class HFEagleModel(EagleModel):
 
         # Freeze all parameters
         if self.eagle_freeze_base_model:
-            for name, param in self.named_parameters():
+            for _, param in self.named_parameters():
                 param.requires_grad = False
 
         self.eagle_module = EagleModule(
@@ -733,8 +727,6 @@ class HFEagleModel(EagleModel):
                 tensor_mask, 0, dtype=self._base_llm_config.dtype, device=self.device
             ).masked_fill(~tensor_mask, dtypemin)
 
-            # Note: (hg) repeat mask for kimi-k2 compatibility
-            tensor_mask = tensor_mask.repeat(batch_size, 1, 1, 1)
             return tensor_mask
 
     def _base_model_forward(
