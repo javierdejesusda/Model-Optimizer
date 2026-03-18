@@ -36,13 +36,13 @@ from .config import (
     AWQClipCalibConfig,
     AWQFullCalibConfig,
     AWQLiteCalibConfig,
+    CalibrationConfig,
     CompressConfig,
     GPTQLiteConfig,
     LocalHessianCalibConfig,
     MaxCalibConfig,
     MseCalibConfig,
     QuantizeAlgoCfgType,
-    QuantizeAlgorithmConfig,
     QuantizeConfig,
     SmoothQuantCalibConfig,
     SVDQuantConfig,
@@ -211,7 +211,7 @@ class AutoQuantizeModeDescriptor(QuantizeModeDescriptor):
 
 def wrapped_calib_func(
     model: ModelLikeModule,
-    config: QuantizeAlgorithmConfig,
+    config: CalibrationConfig,
     forward_loop: ForwardLoop | None = None,
     func: Callable | None = None,
 ) -> ConvertReturnType:
@@ -224,8 +224,8 @@ def wrapped_calib_func(
     kwargs = config.model_dump()
     method = kwargs.pop("method")
     sequential = kwargs.pop("use_sequential", False)
-    calib_include_modules = kwargs.pop("calib_include_modules", None)
-    calib_exclude_modules = kwargs.pop("calib_exclude_modules", None)
+    include_modules = kwargs.pop("include_modules", None)
+    exclude_modules = kwargs.pop("exclude_modules", None)
     if method is not None and "awq" in method:
         # For backward compatibility
         kwargs["algorithm"] = method
@@ -246,7 +246,7 @@ def wrapped_calib_func(
                 module._moe_count_expert_calib_tokens = True
 
     if func is not None:
-        with filter_calib_modules(model, calib_include_modules, calib_exclude_modules):
+        with filter_calib_modules(model, include_modules, exclude_modules):
             if sequential:
                 if forward_loop is None:
                     raise ValueError("forward_loop is required for calibration but got None.")
@@ -274,7 +274,7 @@ class BaseCalibrateModeDescriptor(ModeDescriptor):
     """Base class for quantization calibration algorithm modes.
 
     All calibration algorithm modes must be derived from this base class.
-    In addition, the `config_class` for the mode must return a subclass of :class:`QuantizeAlgorithmConfig`.
+    In addition, the `config_class` for the mode must return a subclass of :class:`CalibrationConfig`.
 
     This base class also provides some convenient wrappers/utilities for calibration algorithms to be
     translated into ModelOpt mode.
@@ -293,8 +293,8 @@ class BaseCalibrateModeDescriptor(ModeDescriptor):
 
     def __init__(self, *args, **kwargs):
         """Initialize Base calibrate mode descriptor."""
-        assert issubclass(self.config_class, QuantizeAlgorithmConfig), (
-            f"`config_class` of {self.__class__} must be a subclass of `QuantizeAlgorithmConfig`!, "
+        assert issubclass(self.config_class, CalibrationConfig), (
+            f"`config_class` of {self.__class__} must be a subclass of `CalibrationConfig`!, "
             f"got {self.config_class}!"
         )
         super().__init__(*args, **kwargs)
@@ -315,7 +315,7 @@ class BaseCalibrateModeDescriptor(ModeDescriptor):
 
     @property
     @abstractmethod
-    def config_class(self) -> type[QuantizeAlgorithmConfig]:
+    def config_class(self) -> type[CalibrationConfig]:
         """Specifies the config class for the mode."""
 
     @property
@@ -390,9 +390,9 @@ class NoneCalibrateModeDescriptor(BaseCalibrateModeDescriptor):
     """Mode for no calibration algorithm."""
 
     @property
-    def config_class(self) -> type[QuantizeAlgorithmConfig]:
+    def config_class(self) -> type[CalibrationConfig]:
         """Specifies the config class for the mode."""
-        return QuantizeAlgorithmConfig
+        return CalibrationConfig
 
     _calib_func = None
 
@@ -402,7 +402,7 @@ class MaxCalibrateModeDescriptor(BaseCalibrateModeDescriptor):
     """Mode for max calibration algorithm."""
 
     @property
-    def config_class(self) -> type[QuantizeAlgorithmConfig]:
+    def config_class(self) -> type[CalibrationConfig]:
         """Specifies the config class for the mode."""
         return MaxCalibConfig
 
@@ -414,7 +414,7 @@ class MseCalibrateModeDescriptor(BaseCalibrateModeDescriptor):
     """Mode for mse calibration algorithm."""
 
     @property
-    def config_class(self) -> type[QuantizeAlgorithmConfig]:
+    def config_class(self) -> type[CalibrationConfig]:
         """Specifies the config class for the mode."""
         return MseCalibConfig
 
@@ -430,7 +430,7 @@ class LocalHessianModeDescriptor(BaseCalibrateModeDescriptor):
     """
 
     @property
-    def config_class(self) -> type[QuantizeAlgorithmConfig]:
+    def config_class(self) -> type[CalibrationConfig]:
         """Specifies the config class for the mode."""
         return LocalHessianCalibConfig
 
@@ -442,7 +442,7 @@ class SmoothQuantModeDescriptor(BaseCalibrateModeDescriptor):
     """Mode for smoothquant calibration algorithm."""
 
     @property
-    def config_class(self) -> type[QuantizeAlgorithmConfig]:
+    def config_class(self) -> type[CalibrationConfig]:
         """Specifies the config class for the mode."""
         return SmoothQuantCalibConfig
 
@@ -454,7 +454,7 @@ class AWQLiteModeDescriptor(BaseCalibrateModeDescriptor):
     """Mode for AWQ lite calibration algorithm."""
 
     @property
-    def config_class(self) -> type[QuantizeAlgorithmConfig]:
+    def config_class(self) -> type[CalibrationConfig]:
         """Specifies the config class for the mode."""
         return AWQLiteCalibConfig
 
@@ -466,7 +466,7 @@ class AWQClipModeDescriptor(BaseCalibrateModeDescriptor):
     """Mode for AWQ clip calibration algorithm."""
 
     @property
-    def config_class(self) -> type[QuantizeAlgorithmConfig]:
+    def config_class(self) -> type[CalibrationConfig]:
         """Specifies the config class for the mode."""
         return AWQClipCalibConfig
 
@@ -478,7 +478,7 @@ class AWQFullModeDescriptor(BaseCalibrateModeDescriptor):
     """Mode for AWQ full calibration algorithm."""
 
     @property
-    def config_class(self) -> type[QuantizeAlgorithmConfig]:
+    def config_class(self) -> type[CalibrationConfig]:
         """Specifies the config class for the mode."""
         return AWQFullCalibConfig
 
@@ -490,7 +490,7 @@ class SVDQuantModeDescriptor(BaseCalibrateModeDescriptor):
     """Mode for SVDQuant calibration algorithm."""
 
     @property
-    def config_class(self) -> type[QuantizeAlgorithmConfig]:
+    def config_class(self) -> type[CalibrationConfig]:
         """Specifies the config class for the mode."""
         return SVDQuantConfig
 
@@ -507,7 +507,7 @@ class GPTQLiteModeDescriptor(BaseCalibrateModeDescriptor):
     """Mode for GPTQ calibration algorithm."""
 
     @property
-    def config_class(self) -> type[QuantizeAlgorithmConfig]:
+    def config_class(self) -> type[CalibrationConfig]:
         """Specifies the config class for the mode."""
         return GPTQLiteConfig
 
