@@ -114,6 +114,14 @@ while [ $# -gt 0 ]; do
       if [[ "$1" != *=* ]]; then shift; fi
       MIX_HIDDEN_STATES="${1#*=}"
       ;;
+    --use_fake_base_for_offline*)
+      if [[ "$1" != *=* ]]; then shift; fi
+      USE_FAKE_BASE_FOR_OFFLINE="${1#*=}"
+      ;;
+    --trust_remote_code*)
+      if [[ "$1" != *=* ]]; then shift; fi
+      TRUST_REMOTE_CODE="${1#*=}"
+      ;;
     *)
       >&2 printf "Error: Invalid argument ${1#*=}\n"
       exit 1
@@ -161,7 +169,8 @@ DP_SHARD_SIZE=${DP_SHARD_SIZE:-$((TOTAL_GPU/CP_SIZE))}
 LOG_STEPS=${LOG_STEPS:-100}
 DRAFT_VOCAB_CACHE=${DRAFT_VOCAB_CACHE:-""}
 MIX_HIDDEN_STATES=${MIX_HIDDEN_STATES:-"False"}
-
+USE_FAKE_BASE_FOR_OFFLINE=${USE_FAKE_BASE_FOR_OFFLINE:-"False"}
+TRUST_REMOTE_CODE=${TRUST_REMOTE_CODE:-"False"}
 
 if [[ "$MODE" == "eagle3" ]]; then
   if [[ -n "$EAGLE_CONFIG" ]]; then
@@ -247,6 +256,8 @@ CMD="accelerate launch $MULTI_NODE_ARGS --mixed_precision bf16 ${SCRIPT_DIR}/mai
     --estimate_ar $ESTIMATE_AR \
     --ar_validate_steps $AR_VALIDATE_STEPS \
     --mix_hidden_states $MIX_HIDDEN_STATES \
+    --use_fake_base_for_offline $USE_FAKE_BASE_FOR_OFFLINE \
+    --trust_remote_code $TRUST_REMOTE_CODE \
     $DRAFT_VOCAB_CACHE_ARGS \
     $VLM_ARGS \
     $OFFLINE_TRAINING_ARGS \

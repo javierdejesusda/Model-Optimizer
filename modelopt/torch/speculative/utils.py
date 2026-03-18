@@ -509,7 +509,7 @@ def load_vlm_or_llm(
     if use_offline_training and use_fake_base:
         from modelopt.torch.speculative.plugins.modeling_fakebase import FakeBaseModel
 
-        return FakeBaseModel(model_name_or_path)
+        return FakeBaseModel(model_name_or_path, trust_remote_code=trust_remote_code)
 
     model_config = transformers.AutoConfig.from_pretrained(
         model_name_or_path, trust_remote_code=trust_remote_code

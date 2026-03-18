@@ -21,6 +21,7 @@ import os
 import torch
 import torch.nn as nn
 import transformers
+from huggingface_hub import hf_hub_download
 from safetensors.torch import load_file as safetensors_load_file
 from transformers import PretrainedConfig, PreTrainedModel
 
@@ -81,13 +82,19 @@ class FakeBaseModel(PreTrainedModel):
 
     config_class = FakeBaseConfig
 
-    def __init__(self, source: str):
-        """Load lm_head and embed_tokens from a local HuggingFace checkpoint directory.
+    def __init__(self, source: str, trust_remote_code: bool = False):
+        """Load lm_head and embed_tokens from a local directory or HuggingFace Hub repo.
 
         Args:
-            source: Path to a local HuggingFace checkpoint directory.
+            source: Path to a local HuggingFace checkpoint directory, or a HuggingFace Hub
+                repo ID (e.g. ``"meta-llama/Llama-3.1-8B"``). The source type is detected
+                automatically: if ``source`` is an existing local directory it is treated as a
+                local checkpoint; otherwise it is treated as a Hub repo ID and the required
+                files are downloaded via ``huggingface_hub``.
         """
-        orig_config = transformers.AutoConfig.from_pretrained(source)
+        orig_config = transformers.AutoConfig.from_pretrained(
+            source, trust_remote_code=trust_remote_code
+        )
         # For vlms, detect language model config based on _VLM_CONFIG_ATTRS
         base_cfg = next(
             (
@@ -132,24 +139,47 @@ class FakeBaseModel(PreTrainedModel):
         raise RuntimeError(f"Cannot find {label} in checkpoint; tried: {tried}")
 
     def _load_weights(self, source: str):
-        """Load lm_head and embed_tokens weights from a local checkpoint directory."""
-        index_path = os.path.join(source, _SAFETENSORS_INDEX_FILENAME)
+        """Load lm_head and embed_tokens weights from a local directory or HuggingFace Hub repo.
 
-        if not os.path.isfile(index_path):
-            raise FileNotFoundError(f"No {_SAFETENSORS_INDEX_FILENAME} found in {source!r}.")
+        For remote repos the index file and the two required weight shards are downloaded via
+        ``huggingface_hub`` and cached locally; subsequent calls reuse the cache.
+        """
+        if os.path.isdir(source):
+            index_path = os.path.join(source, _SAFETENSORS_INDEX_FILENAME)
+            if not os.path.isfile(index_path):
+                raise FileNotFoundError(f"No {_SAFETENSORS_INDEX_FILENAME} found in {source!r}.")
+            with open(index_path) as f:
+                weight_map = json.load(f).get("weight_map", {})
 
-        with open(index_path) as f:
-            weight_map = json.load(f).get("weight_map", {})
+            lm_head_key = self._find_weight_key(weight_map, _LM_HEAD_PATHS, "lm_head")
+            embed_tokens_key = self._find_weight_key(
+                weight_map, _EMBED_TOKENS_PATHS, "embed_tokens"
+            )
 
-        lm_head_key = self._find_weight_key(weight_map, _LM_HEAD_PATHS, "lm_head")
-        embed_tokens_key = self._find_weight_key(weight_map, _EMBED_TOKENS_PATHS, "embed_tokens")
+            lm_head_state = safetensors_load_file(
+                os.path.join(source, weight_map[lm_head_key]), device="cpu"
+            )
+            embed_tokens_state = safetensors_load_file(
+                os.path.join(source, weight_map[embed_tokens_key]), device="cpu"
+            )
+        else:
+            # Treat source as a HuggingFace Hub repo ID
+            index_path = hf_hub_download(repo_id=source, filename=_SAFETENSORS_INDEX_FILENAME)
+            with open(index_path) as f:
+                weight_map = json.load(f).get("weight_map", {})
 
-        lm_head_state = safetensors_load_file(
-            os.path.join(source, weight_map[lm_head_key]), device="cpu"
-        )
-        embed_tokens_state = safetensors_load_file(
-            os.path.join(source, weight_map[embed_tokens_key]), device="cpu"
-        )
+            lm_head_key = self._find_weight_key(weight_map, _LM_HEAD_PATHS, "lm_head")
+            embed_tokens_key = self._find_weight_key(
+                weight_map, _EMBED_TOKENS_PATHS, "embed_tokens"
+            )
+
+            lm_head_shard = hf_hub_download(repo_id=source, filename=weight_map[lm_head_key])
+            embed_tokens_shard = hf_hub_download(
+                repo_id=source, filename=weight_map[embed_tokens_key]
+            )
+            lm_head_state = safetensors_load_file(lm_head_shard, device="cpu")
+            embed_tokens_state = safetensors_load_file(embed_tokens_shard, device="cpu")
+
         return lm_head_state[lm_head_key], embed_tokens_state[embed_tokens_key]
 
     def forward(self, *args, **kwargs):
