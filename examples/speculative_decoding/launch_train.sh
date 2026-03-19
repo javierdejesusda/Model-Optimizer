@@ -122,6 +122,10 @@ while [ $# -gt 0 ]; do
       if [[ "$1" != *=* ]]; then shift; fi
       TRUST_REMOTE_CODE="${1#*=}"
       ;;
+    --fsdp*)
+      if [[ "$1" != *=* ]]; then shift; fi
+      FSDP="${1#*=}"
+      ;;
     *)
       >&2 printf "Error: Invalid argument ${1#*=}\n"
       exit 1
@@ -171,6 +175,7 @@ DRAFT_VOCAB_CACHE=${DRAFT_VOCAB_CACHE:-""}
 MIX_HIDDEN_STATES=${MIX_HIDDEN_STATES:-"False"}
 USE_FAKE_BASE_FOR_OFFLINE=${USE_FAKE_BASE_FOR_OFFLINE:-"False"}
 TRUST_REMOTE_CODE=${TRUST_REMOTE_CODE:-"False"}
+FSDP=${FSDP:-"False"}
 
 if [[ "$MODE" == "eagle3" ]]; then
   if [[ -n "$EAGLE_CONFIG" ]]; then
@@ -201,7 +206,7 @@ else
   VLM_ARGS=""
 fi
 
-if [[ "$TOTAL_GPU" -gt 1 ]]; then
+if [[ "$TOTAL_GPU" -gt 1 && "$FSDP" == "True" ]]; then
   #Use FSDP2 when multi GPU available
   FSDP_ARGS="--fsdp 'full_shard' --fsdp_config ${SCRIPT_DIR}/fsdp_config.json"
 else

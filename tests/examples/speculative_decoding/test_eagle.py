@@ -263,6 +263,7 @@ def test_offline_eagle3_training(
         "--output_dir", output_subdir,
         "--training_seq_len", "64",
         "--trust_remote_code", "True",
+        "--fsdp", "False",
     ]
     if use_fake_base:
         cmd += ["--use_fake_base_for_offline", "true"]
