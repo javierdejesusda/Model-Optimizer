@@ -448,7 +448,7 @@ def _setup_kimi_k2_decoder():
     original_decoder_layer_forward = kimi_k2_module.DeepseekV3DecoderLayer.forward
 
     def patched_decoder_layer_fwd(self, *args, **kwargs):
-        kwargs["past_key_value"] = kwargs.get("past_key_values")
+        kwargs["past_key_value"] = kwargs.pop("past_key_values", None)
         return original_decoder_layer_forward(self, *args, **kwargs)
 
     kimi_k2_module.DeepseekV3DecoderLayer.forward = patched_decoder_layer_fwd
@@ -486,7 +486,7 @@ def enable_cp_ttt_patch():
 
 def load_vlm_or_llm(
     model_name_or_path: str,
-    use_fake_base: bool = True,
+    use_fake_base: bool = False,
     use_offline_training: bool = False,
     torch_dtype: str | torch.dtype | None = None,
     device_map: str | None = None,

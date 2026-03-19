@@ -223,7 +223,7 @@ def test_offline_eagle3_training(
     import transformers
 
     model_path = tiny_llama_path if model_source is None else model_source
-    model_id = "tinyllama" if model_source is None else "kimi-k2.5"
+    model_id = "tinyllama" if model_source is None else model_source.split("/")[-1]
     output_subdir = eagle_output_dir / f"eagle-{model_id}-offline"
 
     cfg = transformers.AutoConfig.from_pretrained(model_path, trust_remote_code=True)
